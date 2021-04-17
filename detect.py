@@ -81,7 +81,8 @@ def main(_argv):
             max_output_size_per_class=50,
             max_total_size=50,
             iou_threshold=FLAGS.iou,
-            score_threshold=FLAGS.score
+            score_threshold=FLAGS.score,
+            clip_boxes=False
         )
         pred_bbox = [boxes.numpy(), scores.numpy(), classes.numpy(), valid_detections.numpy()]
 

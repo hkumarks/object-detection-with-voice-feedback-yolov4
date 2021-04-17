@@ -1,3 +1,6 @@
 /core/__pycache__
 /data/yolov4-tiny.weights
 /data/yolov4.weights
+/.idea
+/detections
+/checkpoints
