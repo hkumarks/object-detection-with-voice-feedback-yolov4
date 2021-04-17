@@ -13,6 +13,12 @@ import cv2
 import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
+# ========= myImports =========
+
+import playsound
+from gtts import gTTS
+
+# ======== endMyImports =======
 
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', './checkpoints/yolov4-416',
@@ -78,11 +84,10 @@ def main(_argv):
             boxes=tf.reshape(boxes, (tf.shape(boxes)[0], -1, 1, 4)),
             scores=tf.reshape(
                 pred_conf, (tf.shape(pred_conf)[0], -1, tf.shape(pred_conf)[-1])),
-            max_output_size_per_class=50,
-            max_total_size=50,
+            max_output_size_per_class=5,
+            max_total_size=10,
             iou_threshold=FLAGS.iou,
             score_threshold=FLAGS.score,
-            clip_boxes=False
         )
         pred_bbox = [boxes.numpy(), scores.numpy(), classes.numpy(), valid_detections.numpy()]
 
@@ -98,10 +103,48 @@ def main(_argv):
         image = utils.draw_bbox(original_image, pred_bbox, allowed_classes = allowed_classes)
 
         image = Image.fromarray(image.astype(np.uint8))
+
         if not FLAGS.dont_show:
             image.show()
         image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
         cv2.imwrite(FLAGS.output + 'detection' + str(count) + '.png', image)
+
+        # ========== myCode ==========
+
+        valid_items = pred_bbox[3][0]
+        valid_classes = pred_bbox[2][0]
+        valid_boxes = pred_bbox[0][0]
+        # section = (input_size/3)
+        (H, W) = original_image.shape[:2]
+        res = []
+        for i in range(valid_items):
+            (top, left, bottom, right) = valid_boxes[i]
+
+            centerX = round((right + left)/2)
+            centerY = round((top + bottom)/2)
+            if centerX <= W/3:
+                w_pos = 'left '
+            elif centerX <= (W/3 * 2):
+                w_pos = 'center '
+            else:
+                w_pos = 'right '
+
+            if centerY <= H/3:
+                h_pos = 'top '
+            elif centerY <= (H/3 * 2):
+                h_pos = 'mid '
+            else:
+                h_pos = 'bottom '
+            res.append(h_pos + w_pos + allowed_classes[int(valid_classes[i])])
+
+        description = ', '.join(res)
+
+        tts = gTTS(text=description, lang="en", slow=False)
+        filename = f'./detections/voice{count}.mp3'
+        tts.save(filename)
+        playsound.playsound(filename)
+
+        # ========= endMyCode =========
 
 if __name__ == '__main__':
     try:
