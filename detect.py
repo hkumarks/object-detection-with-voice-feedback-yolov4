@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
+
 # ========= myImports =========
 
 import playsound
@@ -109,7 +110,7 @@ def main(_argv):
         image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
         cv2.imwrite(FLAGS.output + 'detection' + str(count) + '.png', image)
 
-        # ========== myCode ==========
+        # ========== voiceFeedback ==========
 
         valid_items = pred_bbox[3][0]
         valid_classes = pred_bbox[2][0]
@@ -144,7 +145,7 @@ def main(_argv):
         tts.save(filename)
         playsound.playsound(filename)
 
-        # ========= endMyCode =========
+        # ========= endVoiceFeedback ==========
 
 if __name__ == '__main__':
     try:

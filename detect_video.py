@@ -14,6 +14,13 @@ import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 
+# ========= myImports =========
+
+from core.config import cfg
+import pyttsx3
+
+# ======== endMyImports =======
+
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', './checkpoints/yolov4-416',
                     'path to weights file')
@@ -62,6 +69,10 @@ def main(_argv):
         codec = cv2.VideoWriter_fourcc(*FLAGS.output_format)
         out = cv2.VideoWriter(FLAGS.output, codec, fps, (width, height))
 
+    # initiating pyttsx3 engine and count for the frames to pass before feedback
+    engine = pyttsx3.init()
+    count = 0
+
     while True:
         return_value, frame = vid.read()
         if return_value:
@@ -98,8 +109,8 @@ def main(_argv):
             boxes=tf.reshape(boxes, (tf.shape(boxes)[0], -1, 1, 4)),
             scores=tf.reshape(
                 pred_conf, (tf.shape(pred_conf)[0], -1, tf.shape(pred_conf)[-1])),
-            max_output_size_per_class=50,
-            max_total_size=50,
+            max_output_size_per_class=5,
+            max_total_size=10,
             iou_threshold=FLAGS.iou,
             score_threshold=FLAGS.score
         )
@@ -113,10 +124,57 @@ def main(_argv):
         
         if not FLAGS.dont_show:
             cv2.imshow("result", result)
-        
+
         if FLAGS.output:
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
+
+        # ========== voiceFeedback ==========
+
+        # passing 7 frames before the voice feedback starts
+        frames = 7
+        if count < frames:
+            count += 1
+            continue
+        else:
+            count = 0
+
+        class_names = utils.read_class_names(cfg.YOLO.CLASSES)
+        allowed_classes = list(class_names.values())
+        valid_items = pred_bbox[3][0]
+        valid_classes = pred_bbox[2][0]
+        valid_boxes = pred_bbox[0][0]
+        # section = (input_size/3)
+        (H, W) = frame.shape[:2]
+        res = []
+        for i in range(valid_items):
+            (top, left, bottom, right) = valid_boxes[i]
+
+            centerX = round((right + left)/2)
+            centerY = round((top + bottom)/2)
+            if centerX <= W/3:
+                w_pos = 'left '
+            elif centerX <= (W/3 * 2):
+                w_pos = 'center '
+            else:
+                w_pos = 'right '
+
+            if centerY <= H/3:
+                h_pos = 'top '
+            elif centerY <= (H/3 * 2):
+                h_pos = 'mid '
+            else:
+                h_pos = 'bottom '
+            res.append(h_pos + w_pos  + allowed_classes[int(valid_classes[i])])
+
+        description = ', '.join(res)
+
+        # Using pyttsx3 to play sound directly without saving the file
+        engine.say(description)
+        engine.runAndWait()
+
+        # ========= endVoiceFeedback ==========
+
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
