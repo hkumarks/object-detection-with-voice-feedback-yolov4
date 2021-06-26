@@ -26,7 +26,10 @@ import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.os.Bundle;
 import android.os.SystemClock;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
@@ -35,6 +38,7 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
 import org.tensorflow.lite.examples.detection.customview.OverlayView;
 import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallback;
@@ -84,6 +88,15 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     private MultiBoxTracker tracker;
 
     private BorderedText borderedText;
+    private TextToSpeech textToSpeechEngine;
+    Thread speechThread = null;
+    boolean alive = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        initSpeechEngine();
+    }
 
     @Override
     public void onPreviewSizeChosen(final Size size, final int rotation) {
@@ -213,10 +226,31 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                             if (location != null && result.getConfidence() >= minimumConfidence) {
                                 canvas.drawRect(location, paint);
 
+                                String w_pos, h_pos;
+                                float centerX = Math.round((result.getLocation().right + result.getLocation().left) / 2);
+                                float centerY = Math.round((result.getLocation().top + result.getLocation().bottom) / 2);
+                                if (centerX <= croppedBitmap.getWidth() / 3)
+                                    w_pos = "left ";
+                                else if (centerX <= (croppedBitmap.getWidth() / 3 * 2))
+                                    w_pos = "center ";
+                                else
+                                    w_pos = "right ";
+                                if (centerY <= croppedBitmap.getHeight() / 3)
+                                    h_pos = "top ";
+                                else if (centerY <= (croppedBitmap.getHeight() / 3 * 2))
+                                    h_pos = "mid ";
+                                else
+                                    h_pos = "bottom ";
+                                if(!alive){
+                                    textToSpeechEngine.speak(h_pos + w_pos + result.getTitle() + ".", TextToSpeech.QUEUE_ADD, null, "objectCallOut");
+                                }
+
                                 cropToFrameTransform.mapRect(location);
 
                                 result.setLocation(location);
                                 mappedRecognitions.add(result);
+
+
                             }
                         }
 
@@ -262,5 +296,47 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     @Override
     protected void setNumThreads(final int numThreads) {
         runInBackground(() -> detector.setNumThreads(numThreads));
+    }
+
+    private void initSpeechEngine() {
+        textToSpeechEngine = new TextToSpeech(this, (i) -> {
+            textToSpeechEngine.setLanguage(Locale.ENGLISH);
+            textToSpeechEngine.setSpeechRate(0.8f);
+        });
+        textToSpeechEngine.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String s) {
+                alive= true;
+            }
+
+            @Override
+            public void onDone(String s) {
+                alive = false;
+            }
+
+            @Override
+            public void onError(String s) {
+
+            }
+        });
+    }
+
+    @Override
+    public synchronized void onPause() {
+        Log.d("DetectorActivitys","OnPause");
+        textToSpeechEngine.stop();
+        super.onPause();
+    }
+
+    @Override
+    public synchronized void onStop() {
+        Log.d("DetectorActivitys","OnStop");
+        super.onStop();
+    }
+
+    @Override
+    public synchronized void onDestroy() {
+        Log.d("DetectorActivitys","OnDestroy");
+        super.onDestroy();
     }
 }

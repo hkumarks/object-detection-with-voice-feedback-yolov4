@@ -127,7 +127,9 @@ def main(_argv):
 
         if FLAGS.output:
             out.write(result)
-        if cv2.waitKey(1) & 0xFF == ord('q'): break
+        if cv2.waitKey(1) & 0xFF == ord('q'): 
+        	engine.stop()
+        	break
 
         # ========== voiceFeedback ==========
 
