@@ -14,12 +14,11 @@ import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 
-# ========= myImports =========
-
 from core.config import cfg
 import pyttsx3
+import threading
 
-# ======== endMyImports =======
+# ======== endImports =======
 
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', './checkpoints/yolov4-416',
@@ -33,6 +32,10 @@ flags.DEFINE_string('output_format', 'XVID', 'codec used in VideoWriter when sav
 flags.DEFINE_float('iou', 0.45, 'iou threshold')
 flags.DEFINE_float('score', 0.25, 'score threshold')
 flags.DEFINE_boolean('dont_show', False, 'dont show video output')
+
+def textToSpeech(engine, description):
+    engine.say(description)
+    engine.runAndWait()
 
 def main(_argv):
     config = ConfigProto()
@@ -69,9 +72,9 @@ def main(_argv):
         codec = cv2.VideoWriter_fourcc(*FLAGS.output_format)
         out = cv2.VideoWriter(FLAGS.output, codec, fps, (width, height))
 
-    # initiating pyttsx3 engine and count for the frames to pass before feedback
+    # initiating pyttsx3 engine and thread
     engine = pyttsx3.init()
-    count = 0
+    thread = threading.Thread()
 
     while True:
         return_value, frame = vid.read()
@@ -133,14 +136,6 @@ def main(_argv):
 
         # ========== voiceFeedback ==========
 
-        # passing 7 frames before the voice feedback starts
-        frames = 7
-        if count < frames:
-            count += 1
-            continue
-        else:
-            count = 0
-
         class_names = utils.read_class_names(cfg.YOLO.CLASSES)
         allowed_classes = list(class_names.values())
         valid_items = pred_bbox[3][0]
@@ -171,9 +166,10 @@ def main(_argv):
 
         description = ', '.join(res)
 
-        # Using pyttsx3 to play sound directly without saving the file
-        engine.say(description)
-        engine.runAndWait()
+        # Using pyttsx3 to play sound directly without saving the file via a thread
+        if(not thread.is_alive()):
+            thread.__init__(name="texToSpeech", target=textToSpeech, args=[engine, description])
+            thread.start()
 
         # ========= endVoiceFeedback ==========
 

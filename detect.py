@@ -14,12 +14,10 @@ import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 
-# ========= myImports =========
-
 import playsound
 from gtts import gTTS
 
-# ======== endMyImports =======
+# ======== endImports =======
 
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', './checkpoints/yolov4-416',
